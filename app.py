@@ -15,6 +15,7 @@ DATABASE_HOST = config.get('FSTR_DB_HOST')
 DATABASE_PORT = config.get('FSTR_DB_PORT')
 
 
+# Метод для создания записи
 @app.route('/submitData', methods=['POST'])
 # Это декоратор Flask, который указывает, что
 # следующая функция должна выполняться при отправке запроса POST к конечной точке /submitData.
@@ -109,6 +110,113 @@ def submit_data():
     except Exception as e:
         return jsonify({"status": 500, "message": str(e), "id": None})
         # str(e) - сообщение об ошибке преобразуется в строку и включается в ответ.
+
+
+# Метод для получения записи по ID
+@app.route('/submitData/<int:id>', method=['GET'])
+def get_record_by_id(id):  # параметр id будет передан из url
+    try:
+        conn = psycopg2.connect(  # Соединение с бд
+            dbname=DATABASE_NAME,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            host=DATABASE_HOST
+        )
+        cursor = conn.cursor()  # подключение к бд
+
+        cursor.execute('''
+            SELECT * FROM Pereval WHERE ID = %s;
+        ''', (id,))  # выполнение sql запроса, выбираем все столбцы из таблицы 'Pereval',
+        # где значение id такое, какое мы передали из url
+
+        record = cursor.fetchone()  # извлекаем результат (одна запись из таблицы 'Pereval')
+
+        conn.close()  # закрываем соединение с бд
+
+        if record:  # если вернулся не пустой результат, то:
+            return jsonify({"status": 200, "data": record})
+        else:
+            return jsonify({"status": 404, "message": "Запись не найдена"})
+
+    except Exception as e:  # если что-то не так, то:
+        return jsonify({"status": 500, "message": str(e)})
+
+
+# Метод для редактирования записи по ID
+@app.route('/submitData/<int:id>', methods=['PATCH'])
+def edit_record_by_id(id):
+    try:
+        data = request.get_json()
+
+        conn = psycopg2.connect(
+            dbname=DATABASE_NAME,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            host=DATABASE_HOST
+        )
+        cursor = conn.cursor()  # подключение к бд и создание курсора
+
+        # Проверка статуса записи
+        cursor.execute('''
+            SELECT status FROM Pereval WHERE ID = %s;
+        ''', (id,))  # Делаем sql запрос на статус записи по id
+
+        status = cursor.fetchone()  # получаем статус записи
+
+        if status and status[0] != 'new':  # если статус записи не 'new', то:
+            conn.close()  # закрываем соединение
+            return jsonify({"status": 403, "message": "Редактировать можно только записи new"})
+
+        # Обновление данных
+        cursor.execute('''
+            UPDATE Pereval SET
+            beautyTitle = %s, title = %s, other_titles = %s, connect = %s, add_time = %s,
+            winter = %s, summer = %s, autumn = %s, spring = %s
+            WHERE ID = %s;
+        ''', (
+            data.get('beauty_title'), data.get('title'), data.get('other_titles'), data.get('connect'),
+            data.get('add_time'),
+            data.get('level', {}).get('winter'), data.get('level', {}).get('summer'),
+            data.get('level', {}).get('autumn'), data.get('level', {}).get('spring'), id
+        ))  # sql запрос на обновление полей в таблице 'Pereval' по id,
+        # значения берутся из JSON запроса. Вторая часть - картеж параметров для sql
+
+        conn.commit()  # выполнение
+        conn.close()
+
+        return jsonify({"status": 200, "state": 1, "message": "Запись успешно отредактирована"})
+
+    except Exception as e:
+        return jsonify({"status": 500, "state": 0, "message": str(e)})
+
+
+# Метод для получения списка записей пользователя по email
+@app.route('/submitData/', methods=['GET'])
+def get_records_by_user_email():
+    try:
+        # Получаем значение user__email из запроса
+        user_email = request.args.get('user__email')
+
+        conn = psycopg2.connect(
+            dbname=DATABASE_NAME,
+            user=DATABASE_USER,
+            password=DATABASE_PASSWORD,
+            host=DATABASE_HOST
+        )
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT * FROM Pereval WHERE user_id = (SELECT ID FROM Users WHERE email = %s);
+        ''', (user_email,))  # Получаем записи пользователя по email
+
+        records = cursor.fetchall()  # извлекаем записи
+        conn.close()
+
+        return jsonify({"status": 200, "data": records})
+
+    except Exception as e:
+        return jsonify({"status": 500, "message": str(e)})
+
 
 if __name__ == '__main__':
     app.run(debug=True)
