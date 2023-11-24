@@ -4,10 +4,9 @@ from decouple import Config
 
 app = Flask(__name__)
 
+# значения переменных из окружения
 config = Config()
 config.read('conf.env')
-
-# значения переменных из окружения
 DATABASE_NAME = config.get('FSTR_DB_NAME')
 DATABASE_USER = config.get('FSTR_DB_USER')
 DATABASE_PASSWORD = config.get('FSTR_DB_PASS')
@@ -22,6 +21,72 @@ DATABASE_PORT = config.get('FSTR_DB_PORT')
 # В целом @app.route: это декоратор,
 # который используется для связывания функции Python с определенным URL-адресом или конечной точкой.
 def submit_data():
+    """
+    Submit data to the API
+    ---
+    parameters:
+      - name: data
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            beauty_title:
+              type: string
+            title:
+              type: string
+            other_titles:
+              type: string
+            connect:
+              type: string
+            add_time:
+              type: string
+            user:
+              type: object
+              properties:
+                email:
+                  type: string
+                fam:
+                  type: string
+                name:
+                  type: string
+                otc:
+                  type: string
+                phone:
+                  type: string
+            coords:
+              type: object
+              properties:
+                latitude:
+                  type: string
+                longitude:
+                  type: string
+                height:
+                  type: string
+            level:
+              type: object
+              properties:
+                winter:
+                  type: string
+                summer:
+                  type: string
+                autumn:
+                  type: string
+                spring:
+                  type: string
+            images:
+              type: array
+              items:
+                type: object
+                properties:
+                  title:
+                    type: string
+    responses:
+      200:
+        description: Successfully submitted data
+      500:
+        description: Internal Server Error
+    """
     try:
         data = request.get_json()
         # Извлекает данные JSON запроса POST.
@@ -109,12 +174,58 @@ def submit_data():
         # "id": pereval_id: - это позволяет ссылаться на вновь созданную запись.
     except Exception as e:
         return jsonify({"status": 500, "message": str(e), "id": None})
-        # str(e) - сообщение об ошибке преобразуется в строку и включается в ответ.
 
 
 # Метод для получения записи по ID
-@app.route('/submitData/<int:id>', method=['GET'])
+@app.route('/submitData/<int:id>', methods=['GET'])
 def get_record_by_id(id):  # параметр id будет передан из url
+    """
+    Get record by ID
+    ---
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: ID of the record
+    responses:
+      200:
+        description: Successfully retrieved record
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              example: 200
+            data:
+              type: object
+              example: {"ID": 1, "beautyTitle": "Beautiful Title", "title": "Title", "other_titles": "Other Titles",
+              "connect": "Connection Info", "add_time": "2023-11-21", "user_id": 1, "coord_id": 1,
+              "winter": "Winter Info", "summer": "Summer Info", "autumn": "Autumn Info", "spring": "Spring Info"}
+
+      404:
+        description: Record not found
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              example: 404
+            message:
+              type: string
+              example: "Запись не найдена"
+      500:
+        description: Internal Server Error
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              example: 500
+            message:
+              type: string
+              example: "Internal Server Error"
+    """
     try:
         conn = psycopg2.connect(  # Соединение с бд
             dbname=DATABASE_NAME,
@@ -133,18 +244,96 @@ def get_record_by_id(id):  # параметр id будет передан из 
 
         conn.close()  # закрываем соединение с бд
 
-        if record:  # если вернулся не пустой результат, то:
+        if record:
             return jsonify({"status": 200, "data": record})
         else:
             return jsonify({"status": 404, "message": "Запись не найдена"})
 
-    except Exception as e:  # если что-то не так, то:
+    except Exception as e:
         return jsonify({"status": 500, "message": str(e)})
 
 
 # Метод для редактирования записи по ID
 @app.route('/submitData/<int:id>', methods=['PATCH'])
 def edit_record_by_id(id):
+    """
+    Edit record by ID
+    ---
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: ID of the record to edit
+      - name: data
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            beauty_title:
+              type: string
+            title:
+              type: string
+            other_titles:
+              type: string
+            connect:
+              type: string
+            add_time:
+              type: string
+            level:
+              type: object
+              properties:
+                winter:
+                  type: string
+                summer:
+                  type: string
+                autumn:
+                  type: string
+                spring:
+                  type: string
+    responses:
+      200:
+        description: Successfully edited record
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              example: 200
+            state:
+              type: integer
+              example: 1
+            message:
+              type: string
+              example: "Запись успешно отредактирована"
+      403:
+        description: Forbidden
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              example: 403
+            message:
+              type: string
+              example: "Редактировать можно только записи new"
+      500:
+        description: Internal Server Error
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              example: 500
+            state:
+              type: integer
+              example: 0
+            message:
+              type: string
+              example: "Internal Server Error"
+    """
+
     try:
         data = request.get_json()
 
@@ -193,6 +382,44 @@ def edit_record_by_id(id):
 # Метод для получения списка записей пользователя по email
 @app.route('/submitData/', methods=['GET'])
 def get_records_by_user_email():
+    """
+    Get records by user email
+    ---
+    parameters:
+      - name: user__email
+        in: query
+        type: string
+        required: true
+        description: Email of the user to retrieve records
+    responses:
+      200:
+        description: Successfully retrieved records
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              example: 200
+            data:
+              type: array
+              items:
+                type: object
+                example: {"ID": 1, "beautyTitle": "Beautiful Title", "title": "Title", "other_titles": "Other Titles",
+                "connect": "Connection Info", "add_time": "2023-11-21", "user_id": 1, "coord_id": 1,
+                "winter": "Winter Info", "summer": "Summer Info", "autumn": "Autumn Info", "spring": "Spring Info"}
+
+      500:
+        description: Internal Server Error
+        schema:
+          type: object
+          properties:
+            status:
+              type: integer
+              example: 500
+            message:
+              type: string
+              example: "Internal Server Error"
+    """
     try:
         # Получаем значение user__email из запроса
         user_email = request.args.get('user__email')
