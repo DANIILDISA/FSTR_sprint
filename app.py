@@ -1,17 +1,24 @@
 from flask import Flask, request, jsonify
 import psycopg2
-from decouple import Config
+# from decouple import Config
 
 app = Flask(__name__)
 
 # значения переменных из окружения
-config = Config()
-config.read('conf.env')
-DATABASE_NAME = config.get('FSTR_DB_NAME')
-DATABASE_USER = config.get('FSTR_DB_USER')
-DATABASE_PASSWORD = config.get('FSTR_DB_PASS')
-DATABASE_HOST = config.get('FSTR_DB_HOST')
-DATABASE_PORT = config.get('FSTR_DB_PORT')
+# config = Config()
+# config.read('conf.env')
+# DATABASE_NAME = config.get('FSTR_DB_NAME')
+# DATABASE_USER = config.get('FSTR_DB_USER')
+# DATABASE_PASSWORD = config.get('FSTR_DB_PASS')
+# DATABASE_HOST = config.get('FSTR_DB_HOST')
+# DATABASE_PORT = config.get('FSTR_DB_PORT')
+
+# Второй вариант для упрощения тестов
+DATABASE_NAME = 'DB_FTSR'
+DATABASE_USER = 'postgres'
+DATABASE_PASSWORD = ''
+DATABASE_HOST = '127.0.0.1'
+DATABASE_PORT = '5432'
 
 
 # Метод для создания записи
